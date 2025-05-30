@@ -25,7 +25,7 @@ param(
     $BuildOutputDirectory = "$((Get-Item $PSScriptRoot).Parent.FullName)\dist"
 ) 
 
-$TB_VERSION = "22W19a"
+$TB_VERSION = "25W22a"
 $PACKAGING_TOOL_PATH = "$PSScriptRoot\IntuneWinAppUtil.exe"
 $SCRIPT_TEMPLATE_PATH = "$PSScriptRoot\Template.ps1"
 $SUBVERSION_CHARS = "abcdefghijklmnopqrstuvwxyz".ToCharArray()
@@ -105,9 +105,18 @@ function Build() {
         $subVersion++
     }while (Test-Path -Path "$($BuildOutputDirectory)\$($versionedIntunewinPackageName)")
 
+    # apply template replacements to script
+    # save the original content to restore after build
+    $mainScriptOriginalContent = Get-Content -Path $mainScriptFullPath
+    $mainScriptContent = $mainScriptOriginalContent.Replace("<<TEMPLATE_PROJECT_NAME>>", $projectName).Replace("<<TEMPLATE_VERSION_STRING>>", "$($versionString)$($SUBVERSION_CHARS[($subVersion-1)])")
+    $mainScriptContent | Out-File -FilePath $mainScriptFullPath -Encoding utf8 -Force
+
     # build the application package
     Write-Host "building package from '$MainScriptName'@'$SourceFilesDirectory' to '$BuildOutputDirectory'"
     & $PACKAGING_TOOL_PATH -c $SourceFilesDirectory -s $MainScriptName -o $BuildOutputDirectory
+
+    # restore original script content
+    $mainScriptOriginalContent | Out-File -FilePath $mainScriptFullPath -Encoding utf8 -Force
 
     # rename built package
     Rename-Item -Path $intunewinPackagePath -NewName $versionedIntunewinPackageName
