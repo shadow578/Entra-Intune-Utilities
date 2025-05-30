@@ -1,3 +1,6 @@
+> [!WARNING]
+> Intune now offers a native LAPS solution, so consider using that.
+
 # IntuneLAPS
 
 [Microsoft LAPS](https://www.microsoft.com/en-us/download/details.aspx?id=46899), but with Intune using [Proactive Remediations](https://docs.microsoft.com/en-us/mem/analytics/proactive-remediations)
