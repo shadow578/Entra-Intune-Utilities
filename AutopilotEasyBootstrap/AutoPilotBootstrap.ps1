@@ -25,18 +25,22 @@ function Main() {
     $assignedUser = Read-Host -Prompt "Please enter the Assigned User ('someone@$($USER_SUFFIX)')"
     if (-not $assignedUser.EndsWith("@$($USER_SUFFIX)")) {
         if (-not $assignedUser.Contains("@")){
-            $assignedUser += "@$($USER_SUFFIX)"
+            if ($assignedUser.Trim() -eq "") {
+                Write-Information "Assigned User is empty. The device will not be pre-assigned to any user. This can be changed after importing the device in the intune admin portal."
+            } else {
+                $assignedUser += "@$($USER_SUFFIX)"
+            }
         } else {
             Write-Information "Assigned User does not end in $($USER_SUFFIX), but has a differnt suffix. assuming you know what you're doing."
         }
     }
 
     # second, choose a group tag for the device
-    Write-Information "`n Enter the group tag to assign to the device:"
+    Write-Information "`nEnter the group tag to assign to the device:"
     $groupTag = Read-Host -Prompt "Group Tag"
 
     # choose between online and offline (csv) mode
-    $onlineMode = Read-Host -Prompt "`n Do you wish to use Get-WindowsAutoPilotInfo in online mode? [yes/NO]"
+    $onlineMode = Read-Host -Prompt "`nDo you wish to use Get-WindowsAutoPilotInfo in online mode? [yes/NO]"
     $onlineMode = $onlineMode -ieq "yes"
     $modeStr = if ($onlineMode) { "Online" } else { "Offline" }
 
@@ -45,16 +49,16 @@ function Main() {
     Write-Information @"
 
 This device will be imported as follows:
-Assigned User: $($assignedUser)
-Group Tag:     $($groupTag)
+Assigned User: $(if ($assignedUser -eq "") {"(no assignment)"} else {"'$($assignedUser)'"})
+Group Tag:     $(if ($groupTag -eq "") {"(no assignment)"} else {"'$($groupTag)'"})
 
 Will run Get-WindowsAutoPilotInfo in $($modeStr) mode.
 
 "@
     $infoValidateAnswer = Read-Host -Prompt "Is this information correct? [yes/NO]"
     if ($infoValidateAnswer -ine "yes") {
-        Write-Information "aborted by user"
-        Exit 0
+        Write-Information "restarting script..."
+        Main
         return
     }
 
@@ -69,6 +73,6 @@ Will run Get-WindowsAutoPilotInfo in $($modeStr) mode.
     }
 }
 $InformationPreference = "Continue"
-Start-Transcript -Path "C:/AutoPilotBootstrap.log"
+Start-Transcript -Path "C:\MDM\AutoPilotBootstrap.log"
 Main
 Stop-Transcript
