@@ -24,10 +24,15 @@ param(
   $Install
 )
 
-function Get-ChromePath()
+function Get-ChromePath([switch] $AllowNull)
 {
   $cmd = Get-Command "chrome.exe"
   if ($null -eq $cmd) {
+    if ($AllowNull) {
+      Write-Host "Chrome executable not found, returning null."
+      return $null
+    }
+
     throw "Chrome executable not found! Please ensure that Google Chrome is installed and available in your PATH."
   }
   
@@ -36,6 +41,21 @@ function Get-ChromePath()
 }
 
 #region Installer
+
+function Install-Chrome()
+{
+  $chromePath = Get-ChromePath -AllowNull
+  if ($null -eq $chromePath) {
+    Write-Host "Chrome is not installed. Attempting to install via winget."
+    winget install Google.Chrome
+  }
+
+  $chromePath = Get-ChromePath -AllowNull
+  if ($null -eq $chromePath) {
+    Write-Host "Chrome installation failed. Please install Google Chrome manually and rerun the script."
+    throw "Chrome installation failed!"
+  }
+}
 
 function New-Shortcut([string] $Path, [string] $Target, [string] $Description = "", [string] $IconLocation = "") {
   $wsh = New-Object -ComObject WScript.Shell
@@ -73,6 +93,9 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PS
   $desktopShortcutPath = Join-Path -Path $desktopPath -ChildPath "EphemeralSessionBrowser.lnk"
   Remove-Item $desktopShortcutPath -ErrorAction SilentlyContinue
   New-Shortcut -Path $desktopShortcutPath -Target $loaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+
+  # chrome is required, so attempt install
+  Install-Chrome
 
   # initial run
   Start-Process -FilePath $loaderPath
