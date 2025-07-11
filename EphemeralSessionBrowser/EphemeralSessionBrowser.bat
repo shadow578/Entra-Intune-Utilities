@@ -21,7 +21,10 @@ exit
 
 param(
   [switch]
-  $Install
+  $Install,
+
+  [switch]
+  $RunAfterInstallOrUpdate
 )
 
 function Get-ChromePath([switch] $AllowNull)
@@ -80,7 +83,7 @@ function Install() {
   $loaderPath = Join-Path -Path $PSScriptRoot -ChildPath "EphemeralSessionBrowser.loader.bat"
   $loader = @"
 @echo off
-powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PSCommandPath"
+powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PSCommandPath" %*
 "@
 
   Remove-Item -Path $loaderPath -ErrorAction SilentlyContinue 
@@ -94,11 +97,16 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PS
   Remove-Item $desktopShortcutPath -ErrorAction SilentlyContinue
   New-Shortcut -Path $desktopShortcutPath -Target $loaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
 
+  # create start menu shortcut
+  $startMenuShortcutPath = Join-Path -Path $env:APPDATA -ChildPath "Microsoft\Windows\Start Menu\Programs\Ephemeral Session Browser.lnk"
+  Remove-Item $startMenuShortcutPath -ErrorAction SilentlyContinue
+  New-Shortcut -Path $startMenuShortcutPath -Target $loaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+
   # chrome is required, so attempt install
   Install-Chrome
 
   # initial run
-  Start-Process -FilePath $loaderPath
+  Start-Process -FilePath $loaderPath -ArgumentList "-RunAfterInstallOrUpdate"
 }
 
 #endregion
@@ -261,8 +269,8 @@ function Start-EphemeralBrowser() {
 
   $firstRun = -not (Test-Path -Path $BaseProfilePath)
   $shiftPressed = Test-ShiftKeyPressedAsync
-  if ($firstRun -or $shiftPressed) {
-    Write-Host "starting chrome with base profile at $BaseProfilePath (first run: $firstRun, shift pressed: $shiftPressed)"
+  if ($firstRun -or $shiftPressed -or $RunAfterInstallOrUpdate) {
+    Write-Host "starting chrome with base profile at $BaseProfilePath (first run: $firstRun, shift pressed: $shiftPressed, after install or update: $RunAfterInstallOrUpdate)"
     $browser = Start-Browser -ProfilePath $BaseProfilePath -IsBaseProfile $true
 
     Show-BaseProfileInfoMessage -FirstRun $firstRun
