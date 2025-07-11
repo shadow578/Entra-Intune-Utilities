@@ -4,6 +4,9 @@ this tool allows you to run many independent ephemeral browser session side-by-s
 this is effectively equivalent to running many independing incognito sessions, or having infinitely many browsers installed.
 browser session, cookies, history and any other changes made to the profile are discarded after closing the browser window.
 
+> [!NOTE]
+> Ephemeral Session Browser is the successor to the multi-session-browser script in this repository.
+
 ## Usage
 
 - install Google Chrome. if chrome is not installed, the script will attempt to install it for you.
@@ -13,7 +16,11 @@ browser session, cookies, history and any other changes made to the profile are 
   * to update, simply re-run the install script  
 - for subsequent runs, use the shortcut created on the desktop
 
+## Uninstall
 
-> [!NOTE]
-> Ephemeral Session Browser is the successor to the multi-session-browser script in this repository.
+to uninstall, remove the following files / directories:
+- %USERPROFILE%\Desktop\EphemeralSessionBrowser.lnk
+- %USERPROFILE%\Microsoft\Windows\Start Menu\Programs\Ephemeral Session Browser.lnk
+- %LOCALAPPDATA%\shadow578\EphemeralSessionBrowser\
+
  
