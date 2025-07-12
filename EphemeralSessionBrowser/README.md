@@ -10,17 +10,9 @@ browser session, cookies, history and any other changes made to the profile are 
 ## Usage
 
 - install Google Chrome. if chrome is not installed, the script will attempt to install it for you.
-- run the script by double-clicking the `EphemeralSessionBrowser.bat` file
-  * this will install the script and run it for the first time
-  * on the initial run, setup the browser as you like (install extensions, set homepage, add bookmarks)
-  * to update, simply re-run the install script  
-- for subsequent runs, use the shortcut created on the desktop
-
-## Uninstall
-
-to uninstall, remove the following files / directories:
-- %USERPROFILE%\Desktop\EphemeralSessionBrowser.lnk
-- %USERPROFILE%\Microsoft\Windows\Start Menu\Programs\Ephemeral Session Browser.lnk
-- %LOCALAPPDATA%\shadow578\EphemeralSessionBrowser\
+- run the script by double-clicking the `EphemeralSessionBrowser.bat` file to start the install wizard.
+  * to update, simply download and run the latest version of the script.
+- if you wish to uninstall or modify the installation, you can start the install wizard again by via the windows programs and features menu.
+- to quickly modify the base profile, hold down the `Shift` key while starting.
 
  
