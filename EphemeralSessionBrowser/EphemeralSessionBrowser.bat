@@ -102,6 +102,14 @@ function New-Shortcut([string] $Path, [string] $Target, [string] $Description = 
   $shortcut.Save()
 }
 
+function Get-UninstallKey([switch] $Create) {
+  $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EphemeralSessionBrowser"
+  if ($Create -and (-not (Test-Path -Path $uninstallKey))) {
+    New-Item -Path $uninstallKey -Force | Out-Null
+  }
+  return $uninstallKey
+}
+
 function Remove-ESPInstall([switch] $RemoveProfiles) {
   Write-Host "Removing EphemeralSessionBrowser installation..."
   $paths = Get-InstallPaths
@@ -110,6 +118,8 @@ function Remove-ESPInstall([switch] $RemoveProfiles) {
   Remove-Item -Path $paths.LoaderPath -ErrorAction SilentlyContinue
   Remove-Item -Path $paths.DesktopShortcut -ErrorAction SilentlyContinue
   Remove-Item -Path $paths.StartMenuShortcut -ErrorAction SilentlyContinue
+
+  Remove-Item -Path (Get-UninstallKey -Create:$false) -ErrorAction SilentlyContinue
 
   if ($RemoveProfiles) {
     Remove-Item -Path ((Get-ProfilesPaths).Directory) -Recurse -Force -ErrorAction SilentlyContinue
@@ -137,13 +147,24 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
   # chrome is required, so attempt install
   Install-Chrome
 
+  $displayName = "Ephemeral Session Browser"
+  $shortcutIcon = "$(Get-ChromePath),4"
+
+  # add uninstall entry to registry
+  $uninstallKey = Get-UninstallKey -Create
+  Set-ItemProperty -Path $uninstallKey -Name "DisplayName" -Value $displayName
+  Set-ItemProperty -Path $uninstallKey -Name "DisplayIcon" -Value $shortcutIcon
+  Set-ItemProperty -Path $uninstallKey -Name "Publisher" -Value "shadow578"
+  Set-ItemProperty -Path $uninstallKey -Name "UninstallString" -Value "$($paths.LoaderPath) -StartInstallWizard -Uninstall"
+  Set-ItemProperty -Path $uninstallKey -Name "ModifyPath" -Value "$($paths.LoaderPath) -StartInstallWizard"
+
   # create shortcuts
   if ($DesktopShortcut) {
-    New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+    New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description $displayName -IconLocation $shortcutIcon
   }
 
   if ($StartMenuShortcut) {
-    New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+    New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description $displayName -IconLocation $shortcutIcon
   }
 
   if ($RunAfterInstall) {
