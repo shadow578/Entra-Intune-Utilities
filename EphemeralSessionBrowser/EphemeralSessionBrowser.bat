@@ -113,7 +113,7 @@ function Remove-ESPInstall([switch] $RemoveProfiles) {
   }
 }
 
-function New-ESPInstall([switch] $RunAfterInstall) {
+function New-ESPInstall([switch] $DesktopShortcut, [switch] $StartMenuShortcut, [switch] $RunAfterInstall) {
   # before installing, remove any previous installation, keeping profiles
   Remove-ESPInstall -RemoveProfiles:$false
 
@@ -131,45 +131,50 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
   $utf8NoBom = New-Object System.Text.UTF8Encoding $false
   [System.IO.File]::WriteAllLines($paths.LoaderPath, $loader, $utf8NoBom)
 
-  # create shortcuts
-  New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
-  New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
-
   # chrome is required, so attempt install
   Install-Chrome
+
+  # create shortcuts
+  if ($DesktopShortcut) {
+    New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+  }
+
+  if ($StartMenuShortcut) {
+    New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+  }
 
   if ($RunAfterInstall) {
     Start-Process -FilePath $paths.LoaderPath -ArgumentList "-RunAfterInstallOrUpdate"
   }
 }
 
-function Start-InstallWizard() {
+function Start-TUIInstallWizard() {
   Write-Host "Welcome to the Ephemeral Session Browser installation wizard."
 
   $choice = Read-Host "Do you want to (I)nstall or (U)ninstall the Ephemeral Session Browser? [I/U]"
   $choice = $choice.Trim().ToLower()
 
   if ($choice.StartsWith('i')) {
+    $desktopShortcut = Read-Host "Do you want to create a desktop shortcut? [Yes/No]"
+    $desktopShortcut = $desktopShortcut.Trim().ToLower()
+    $desktopShortcut = $desktopShortcut.StartsWith('y')
+
+    $startMenuShortcut = Read-Host "Do you want to create a Start Menu shortcut? [Yes/No]"
+    $startMenuShortcut = $startMenuShortcut.Trim().ToLower()
+    $startMenuShortcut = $startMenuShortcut.StartsWith('y')
+
     $runAfterInstall = Read-Host "Do you want to run the Ephemeral Session Browser after installation completes? [Yes/No]"
     $runAfterInstall = $runAfterInstall.Trim().ToLower()
+    $runAfterInstall = $runAfterInstall.StartsWith('y')
 
-    if ($runAfterInstall.StartsWith('y')) {
-      New-ESPInstall -RunAfterInstall:$true
-    }
-    else {
-      New-ESPInstall -RunAfterInstall:$false
-    }
+    New-ESPInstall -DesktopShortcut:$desktopShortcut -StartMenuShortcut:$startMenuShortcut -RunAfterInstall:$runAfterInstall
   }
   elseif ($choice.StartsWith('u')) {
     $removeProfiles = Read-Host "Do you want to remove profiles as well? [Yes/No]"
     $removeProfiles = $removeProfiles.Trim().ToLower()
+    $removeProfiles = $removeProfiles.StartsWith('y')
 
-    if ($removeProfiles.StartsWith('y')) {
-      Remove-ESPInstall -RemoveProfiles:$true
-    }
-    else {
-      Remove-ESPInstall -RemoveProfiles:$false
-    }
+    Remove-ESPInstall -RemoveProfiles:$removeProfiles
   }
   else {
     Write-Host "Invalid choice. Please enter 'I' to install or 'U' to uninstall."
@@ -178,6 +183,23 @@ function Start-InstallWizard() {
 
   Write-Host "Installation/Uninstallation complete."
   Read-Host "Press Enter to exit"
+}
+
+function Start-GUIInstallWizard() {
+  throw "Not implemented yet"
+}
+
+function Start-InstallWizard() {
+  Write-Host "Starting install wizard..."
+
+  try {
+    Start-GUIInstallWizard
+  }
+  catch {
+    Write-Host "Failed to start GUI install wizard, falling back to TUI install wizard."
+    Write-Host "Error: $_"
+    Start-TUIInstallWizard
+  }
 }
 
 #endregion
