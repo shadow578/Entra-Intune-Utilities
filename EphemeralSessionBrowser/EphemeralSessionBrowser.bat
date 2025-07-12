@@ -1,34 +1,30 @@
 @echo off
 setlocal enabledelayedexpansion
-set "TARGETDIR=%LOCALAPPDATA%\shadow578\EphemeralSessionBrowser"
-set "TARGET=%TARGETDIR%\EphemeralSessionBrowser.ps1"
-set SKIP=20
-del "%TARGET%"
-if not exist "%TARGET%" (
-  mkdir "%TARGETDIR%"
-  set i=0
-  > "%TARGET%" (
-    for /f "usebackq delims=" %%A in ("%~f0") do (
-      set /a i+=1
-      if !i! gtr %SKIP% echo(%%A)
-    )
+set "TARGET=%TEMP%\EphemeralSessionBrowser.installer.ps1"
+set SKIP=17
+del "%TARGET%" 2>nul
+set i=0
+> "%TARGET%" (
+  for /f "usebackq delims=" %%A in ("%~f0") do (
+    set /a i+=1
+    if !i! gtr %SKIP% echo(%%A)
   )
 )
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File %TARGET% -Install
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File %TARGET% -Installer
+del "%TARGET%" 2>nul
 goto :EOF
 exit
 # --- end of installer bootstrapper ---
 
 param(
   [switch]
-  $Install,
+  $Installer,
 
   [switch]
   $RunAfterInstallOrUpdate
 )
 
-function Get-ChromePath([switch] $AllowNull)
-{
+function Get-ChromePath([switch] $AllowNull) {
   $cmd = Get-Command "chrome.exe"
   if ($null -eq $cmd) {
     if ($AllowNull) {
@@ -43,14 +39,41 @@ function Get-ChromePath([switch] $AllowNull)
   return $cmd.Source
 }
 
+function Get-InstallPaths() {
+  $desktopPath = [System.Environment]::GetFolderPath("Desktop")
+  $installDirectory = Join-Path -Path $env:LOCALAPPDATA -ChildPath "shadow578\EphemeralSessionBrowser"
+  
+  return [PSCustomObject]@{
+    InstallDirectory  = $installDirectory
+    MainScriptPath    = Join-Path -Path $installDirectory -ChildPath "EphemeralSessionBrowser.ps1"
+    LoaderPath        = Join-Path -Path $installDirectory -ChildPath "EphemeralSessionBrowser.loader.bat"
+    DesktopShortcut   = Join-Path -Path $desktopPath -ChildPath "EphemeralSessionBrowser.lnk"
+    StartMenuShortcut = Join-Path -Path $env:APPDATA -ChildPath "Microsoft\Windows\Start Menu\Programs\Ephemeral Session Browser.lnk"
+  }
+}
+
+function Get-ProfilesPaths() {
+  $paths = Get-InstallPaths
+  $profilesPath = Join-Path -Path $paths.InstallDirectory -ChildPath "profiles"
+
+  return [PSCustomObject]@{
+    Directory   = $profilesPath
+    BaseProfile = Join-Path -Path $profilesPath -ChildPath "base"
+  }
+}
+
 #region Installer
 
-function Install-Chrome()
-{
+function Install-Chrome() {
   $chromePath = Get-ChromePath -AllowNull
   if ($null -eq $chromePath) {
     Write-Host "Chrome is not installed. Attempting to install via winget."
-    winget install Google.Chrome
+    try {
+      winget install Google.Chrome
+    }
+    catch {
+      Write-Host "Failed to install Chrome via winget: $_" -ForegroundColor Red
+    }
   }
 
   $chromePath = Get-ChromePath -AllowNull
@@ -76,45 +99,79 @@ function New-Shortcut([string] $Path, [string] $Target, [string] $Description = 
   $shortcut.Save()
 }
 
-function Install() {
-  Write-Host "Installing EphemeralSessionBrowser..."
+function Remove-ESPInstall([switch] $RemoveProfiles) {
+  Write-Host "Removing EphemeralSessionBrowser installation..."
+  $paths = Get-InstallPaths
 
-  # ESP loads via a loader script, so create that
-  $loaderPath = Join-Path -Path $PSScriptRoot -ChildPath "EphemeralSessionBrowser.loader.bat"
+  Remove-Item -Path $paths.MainScriptPath -ErrorAction SilentlyContinue
+  Remove-Item -Path $paths.LoaderPath -ErrorAction SilentlyContinue
+  Remove-Item -Path $paths.DesktopShortcut -ErrorAction SilentlyContinue
+  Remove-Item -Path $paths.StartMenuShortcut -ErrorAction SilentlyContinue
+
+  if ($RemoveProfiles) {
+    Remove-Item -Path ((Get-ProfilesPaths).Directory) -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function New-ESPInstall() {
+  # before installing, remove any previous installation, keeping profiles
+  Remove-ESPInstall -RemoveProfiles:$false
+
+  Write-Host "Installing EphemeralSessionBrowser..."
+  $paths = Get-InstallPaths
+
+  # write program scripts
+  New-Item -ItemType Directory -Path $paths.InstallDirectory -Force | Out-Null
+  Copy-Item -Path $PSCommandPath -Destination $paths.MainScriptPath -Force
   $loader = @"
 @echo off
-powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$PSCommandPath" %*
+powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($paths.MainScriptPath)" %*
 "@
 
-  Remove-Item -Path $loaderPath -ErrorAction SilentlyContinue 
-
   $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-  [System.IO.File]::WriteAllLines($loaderPath, $loader, $utf8NoBom)
+  [System.IO.File]::WriteAllLines($paths.LoaderPath, $loader, $utf8NoBom)
 
-  # create desktop shortcut
-  $desktopPath = [System.Environment]::GetFolderPath("Desktop")
-  $desktopShortcutPath = Join-Path -Path $desktopPath -ChildPath "EphemeralSessionBrowser.lnk"
-  Remove-Item $desktopShortcutPath -ErrorAction SilentlyContinue
-  New-Shortcut -Path $desktopShortcutPath -Target $loaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
-
-  # create start menu shortcut
-  $startMenuShortcutPath = Join-Path -Path $env:APPDATA -ChildPath "Microsoft\Windows\Start Menu\Programs\Ephemeral Session Browser.lnk"
-  Remove-Item $startMenuShortcutPath -ErrorAction SilentlyContinue
-  New-Shortcut -Path $startMenuShortcutPath -Target $loaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+  # create shortcuts
+  New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
+  New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description "Ephemeral Session Browser" -IconLocation "$(Get-ChromePath),4"
 
   # chrome is required, so attempt install
   Install-Chrome
 
   # initial run
-  Start-Process -FilePath $loaderPath -ArgumentList "-RunAfterInstallOrUpdate"
+  Start-Process -FilePath $paths.LoaderPath -ArgumentList "-RunAfterInstallOrUpdate"
+}
+
+function Start-InstallWizard() {
+  $choice = Read-Host "Install or uninstall [i/u]?"
+
+  if ($choice -eq 'i') {
+    New-ESPInstall
+  }
+  elseif ($choice -eq 'u') {
+    $removeProfiles = Read-Host "Remove profiles as well? [y/n]"
+    if ($removeProfiles -eq 'y') {
+      Remove-ESPInstall -RemoveProfiles:$true
+    }
+    else {
+      Remove-ESPInstall -RemoveProfiles:$false
+    }
+  }
+  else {
+    Write-Host "Invalid choice. Please enter 'i' to install or 'u' to uninstall."
+    Start-InstallWizard
+  }
+
+  Write-Host "Installation/Uninstallation complete. You can now run the Ephemeral Session Browser."
+  Read-Host "Press Enter to exit"
 }
 
 #endregion
 
 #region Browser
 
-$ProfilesPath = Join-Path -Path $PSScriptRoot -ChildPath "profiles"
-$BaseProfilePath = Join-Path -Path $ProfilesPath -ChildPath "base"
+#$ProfilesPath = Join-Path -Path $PSScriptRoot -ChildPath "profiles"
+#$BaseProfilePath = Join-Path -Path $ProfilesPath -ChildPath "base"
 
 function Get-RandomRGB() {
   # generate a random HSL color hue, with fixed saturation and lightness
@@ -161,43 +218,43 @@ function New-EphemeralProfileName() {
   return $profileName
 }
 
-function Get-EphemeralProfilePath([string] $Name, [bool] $CreateIfNotExists) {
-  $tmpProfilePath = Join-Path -Path $ProfilesPath -ChildPath $Name
+function Get-EphemeralProfilePath($ProfilesConfig, [string] $Name, [bool] $CreateIfNotExists) {
+  $tmpProfilePath = Join-Path -Path ($ProfilesConfig.Directory) -ChildPath $Name
 
   if ($CreateIfNotExists -and -not (Test-Path -Path $tmpProfilePath)) {
     Write-Host "profile path $tmpProfilePath does not exist, creating it now"
-    New-EphemeralProfile -Name $Name
+    New-EphemeralProfile -ProfilesConfig $ProfilesConfig -Name $Name
   }
 
   return $tmpProfilePath
 }
 
-function New-EphemeralProfile([string] $Name) {
-  $tmpProfilePath = Get-EphemeralProfilePath $Name -CreateIfNotExists:$false
+function New-EphemeralProfile($ProfilesConfig, [string] $Name) {
+  $tmpProfilePath = Get-EphemeralProfilePath -ProfilesConfig $profiles -Name $Name -CreateIfNotExists:$false
 
   Write-Host "preparing temporary profile at $tmpProfilePath"
   Remove-Item -Path $tmpProfilePath -Recurse -Force -ErrorAction SilentlyContinue
-  Copy-Item -Path $BaseProfilePath -Destination $tmpProfilePath -Recurse -Force
+  Copy-Item -Path ($ProfilesConfig.BaseProfile) -Destination $tmpProfilePath -Recurse -Force
 }
 
-function Remove-EphemeralProfile([string] $Name) {
-  $tmpProfilePath = Get-EphemeralProfilePath $Name -CreateIfNotExists:$false
+function Remove-EphemeralProfile($ProfilesConfig, [string] $Name) {
+  $tmpProfilePath = Get-EphemeralProfilePath -ProfilesConfig $ProfilesConfig -Name $Name -CreateIfNotExists:$false
 
   Write-Host "removing temporary profile at $tmpProfilePath"
   Remove-Item -Path $tmpProfilePath -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-function Set-CachedProfileName([string] $Name) {
-  $cachedProfilePath = Join-Path -Path $ProfilesPath -ChildPath "cached.txt"
-  if (-not (Test-Path -Path $ProfilesPath)) {
-    New-Item -ItemType Directory -Path $ProfilesPath -Force
+function Set-CachedProfileName($ProfilesConfig, [string] $Name) {
+  $cachedProfilePath = Join-Path -Path ($ProfilesConfig.Directory) -ChildPath "cached.txt"
+  if (-not (Test-Path -Path ($ProfilesConfig.Directory))) {
+    New-Item -ItemType Directory -Path ($ProfilesConfig.Directory) -Force
   }
   Set-Content -Path $cachedProfilePath -Value $Name
   Write-Host "cached profile name set to $Name"
 }
 
-function Get-CachedProfileName() {
-  $cachedProfilePath = Join-Path -Path $ProfilesPath -ChildPath "cached.txt"
+function Get-CachedProfileName($ProfilesConfig) {
+  $cachedProfilePath = Join-Path -Path ($ProfilesConfig.Directory) -ChildPath "cached.txt"
   if (Test-Path -Path $cachedProfilePath) {
     return Get-Content -Path $cachedProfilePath
   }
@@ -263,55 +320,57 @@ $commonBody
 }
 
 function Start-EphemeralBrowser() {
-  if (-not (Test-Path -Path $ProfilesPath)) {
-    New-Item -ItemType Directory -Path $ProfilesPath -Force
+  $profiles = Get-ProfilesPaths
+
+  if (-not (Test-Path -Path ($profiles.Directory))) {
+    New-Item -ItemType Directory -Path ($profiles.Directory) -Force
   }
 
-  $firstRun = -not (Test-Path -Path $BaseProfilePath)
+  $firstRun = -not (Test-Path -Path ($profiles.BaseProfile))
   $shiftPressed = Test-ShiftKeyPressedAsync
   if ($firstRun -or $shiftPressed -or $RunAfterInstallOrUpdate) {
-    Write-Host "starting chrome with base profile at $BaseProfilePath (first run: $firstRun, shift pressed: $shiftPressed, after install or update: $RunAfterInstallOrUpdate)"
-    $browser = Start-Browser -ProfilePath $BaseProfilePath -IsBaseProfile $true
+    Write-Host "starting chrome with base profile at $($profiles.BaseProfile) (first run: $firstRun, shift pressed: $shiftPressed, after install or update: $RunAfterInstallOrUpdate)"
+    $browser = Start-Browser -ProfilePath ($profiles.BaseProfile) -IsBaseProfile $true
 
     Show-BaseProfileInfoMessage -FirstRun $firstRun
 
     $browser.WaitForExit()
 
     Write-Host "recreating cached profile after editing base profile"
-    $cachedProfileName = Get-CachedProfileName
+    $cachedProfileName = Get-CachedProfileName -ProfilesConfig $profiles
     if ($null -ne $cachedProfileName) {
-      Remove-EphemeralProfile -Name $cachedProfileName
+      Remove-EphemeralProfile -ProfilesConfig $profiles -Name $cachedProfileName
     }
     $cachedProfileName = New-EphemeralProfileName
-    New-EphemeralProfile -Name $cachedProfileName
-    Set-CachedProfileName -Name $cachedProfileName
+    New-EphemeralProfile -ProfilesConfig $profiles -Name $cachedProfileName
+    Set-CachedProfileName -ProfilesConfig $profiles -Name $cachedProfileName
   }
   else {
-    $cachedProfileName = Get-CachedProfileName
+    $cachedProfileName = Get-CachedProfileName -ProfilesConfig $profiles
     if ($null -eq $cachedProfileName) {
       Write-Host "no cached profile name found, creating profile on-demand"
       $cachedProfileName = New-EphemeralProfileName
-      New-EphemeralProfile -Name $cachedProfileName
+      New-EphemeralProfile -ProfilesConfig $profiles -Name $cachedProfileName
     }
 
-    $profilePath = Get-EphemeralProfilePath -Name $cachedProfileName -CreateIfNotExists:$true
+    $profilePath = Get-EphemeralProfilePath -ProfilesConfig $profiles -Name $cachedProfileName -CreateIfNotExists:$true
     $browser = Start-Browser -ProfilePath $profilePath -IsBaseProfile $false
 
     $nextProfileName = New-EphemeralProfileName
-    New-EphemeralProfile -Name $nextProfileName
-    Set-CachedProfileName -Name $nextProfileName
+    New-EphemeralProfile -ProfilesConfig $profiles -Name $nextProfileName
+    Set-CachedProfileName -ProfilesConfig $profiles -Name $nextProfileName
 
     $browser.WaitForExit()
 
-    Remove-EphemeralProfile -Name $cachedProfileName
+    Remove-EphemeralProfile -ProfilesConfig $profiles -Name $cachedProfileName
   }
 }
 
 #endregion
 
 function Main() {
-  if ($Install) {
-    Install
+  if ($Installer) {
+    Start-InstallWizard
     return
   }
 
