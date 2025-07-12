@@ -113,7 +113,7 @@ function Remove-ESPInstall([switch] $RemoveProfiles) {
   }
 }
 
-function New-ESPInstall() {
+function New-ESPInstall([switch] $RunAfterInstall) {
   # before installing, remove any previous installation, keeping profiles
   Remove-ESPInstall -RemoveProfiles:$false
 
@@ -138,19 +138,33 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
   # chrome is required, so attempt install
   Install-Chrome
 
-  # initial run
-  Start-Process -FilePath $paths.LoaderPath -ArgumentList "-RunAfterInstallOrUpdate"
+  if ($RunAfterInstall) {
+    Start-Process -FilePath $paths.LoaderPath -ArgumentList "-RunAfterInstallOrUpdate"
+  }
 }
 
 function Start-InstallWizard() {
-  $choice = Read-Host "Install or uninstall [i/u]?"
+  Write-Host "Welcome to the Ephemeral Session Browser installation wizard."
 
-  if ($choice -eq 'i') {
-    New-ESPInstall
+  $choice = Read-Host "Do you want to (I)nstall or (U)ninstall the Ephemeral Session Browser? [I/U]"
+  $choice = $choice.Trim().ToLower()
+
+  if ($choice.StartsWith('i')) {
+    $runAfterInstall = Read-Host "Do you want to run the Ephemeral Session Browser after installation completes? [Yes/No]"
+    $runAfterInstall = $runAfterInstall.Trim().ToLower()
+
+    if ($runAfterInstall.StartsWith('y')) {
+      New-ESPInstall -RunAfterInstall:$true
+    }
+    else {
+      New-ESPInstall -RunAfterInstall:$false
+    }
   }
-  elseif ($choice -eq 'u') {
-    $removeProfiles = Read-Host "Remove profiles as well? [y/n]"
-    if ($removeProfiles -eq 'y') {
+  elseif ($choice.StartsWith('u')) {
+    $removeProfiles = Read-Host "Do you want to remove profiles as well? [Yes/No]"
+    $removeProfiles = $removeProfiles.Trim().ToLower()
+
+    if ($removeProfiles.StartsWith('y')) {
       Remove-ESPInstall -RemoveProfiles:$true
     }
     else {
@@ -158,20 +172,17 @@ function Start-InstallWizard() {
     }
   }
   else {
-    Write-Host "Invalid choice. Please enter 'i' to install or 'u' to uninstall."
+    Write-Host "Invalid choice. Please enter 'I' to install or 'U' to uninstall."
     Start-InstallWizard
   }
 
-  Write-Host "Installation/Uninstallation complete. You can now run the Ephemeral Session Browser."
+  Write-Host "Installation/Uninstallation complete."
   Read-Host "Press Enter to exit"
 }
 
 #endregion
 
 #region Browser
-
-#$ProfilesPath = Join-Path -Path $PSScriptRoot -ChildPath "profiles"
-#$BaseProfilePath = Join-Path -Path $ProfilesPath -ChildPath "base"
 
 function Get-RandomRGB() {
   # generate a random HSL color hue, with fixed saturation and lightness
