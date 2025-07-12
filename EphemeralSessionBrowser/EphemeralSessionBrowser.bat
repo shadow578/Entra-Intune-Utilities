@@ -126,7 +126,7 @@ function Remove-ESPInstall([switch] $RemoveProfiles) {
   }
 }
 
-function New-ESPInstall([switch] $DesktopShortcut, [switch] $StartMenuShortcut, [switch] $RunAfterInstall) {
+function New-ESPInstall([switch] $DesktopShortcut, [switch] $StartMenuShortcut) {
   # before installing, remove any previous installation, keeping profiles
   Remove-ESPInstall -RemoveProfiles:$false
 
@@ -166,10 +166,10 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
   if ($StartMenuShortcut) {
     New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description $displayName -IconLocation $shortcutIcon
   }
+}
 
-  if ($RunAfterInstall) {
-    Start-Process -FilePath $paths.LoaderPath -ArgumentList "-RunAfterInstallOrUpdate"
-  }
+function Start-ESPAfterInstallOrUpdate() {
+  Start-Process -FilePath ((Get-InstallPaths).LoaderPath) -ArgumentList "-RunAfterInstallOrUpdate"
 }
 
 function Start-TUIInstallWizard() {
@@ -196,7 +196,11 @@ function Start-TUIInstallWizard() {
     $runAfterInstall = $runAfterInstall.Trim().ToLower()
     $runAfterInstall = $runAfterInstall.StartsWith('y')
 
-    New-ESPInstall -DesktopShortcut:$desktopShortcut -StartMenuShortcut:$startMenuShortcut -RunAfterInstall:$runAfterInstall
+    New-ESPInstall -DesktopShortcut:$desktopShortcut -StartMenuShortcut:$startMenuShortcut
+
+    if ($runAfterInstall) {
+      Start-ESPAfterInstallOrUpdate
+    }
   }
   elseif ($choice.StartsWith('u')) {
     $removeProfiles = Read-Host "Do you want to remove profiles as well? [Yes/No]"
@@ -219,6 +223,8 @@ function Start-GUIInstallWizard() {
   $fixedInstallLocation = (Get-InstallPaths).InstallDirectory
 
   $githubUrl = "https://github.com/shadow578/Entra-Intune-Utilities/tree/main/EphemeralSessionBrowser"
+
+  $isInstalled = Test-Path -Path ((Get-InstallPaths).MainScriptPath)
 
   Add-Type -AssemblyName System.Windows.Forms
 
@@ -243,7 +249,13 @@ function Start-GUIInstallWizard() {
   $y = 10
 
   $installTab = New-Object System.Windows.Forms.TabPage
-  $installTab.Text = "Install"
+
+  if ($isInstalled) {
+    $installTab.Text = "Update"
+  }
+  else {
+    $installTab.Text = "Install"
+  }
 
   $welcomeText = New-Object System.Windows.Forms.Label
   $welcomeText.Text = @"
@@ -308,12 +320,24 @@ Use the options below to configure your installation.
   #$y += $launchAfterInstallCheck.Height + 10
 
   $installButton = New-Object System.Windows.Forms.Button
-  $installButton.Text = "Install now"
+
+  if ($isInstalled) {
+    $installButton.Text = "Update now"
+  }
+  else {
+    $installButton.Text = "Install now"
+  }
+
   $installButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 100), 30)
   $installButton.Location = New-Object System.Drawing.Point(50, ($tabContentSize.Height - 30 - 50))
   $installButton.Add_Click({      
-      New-ESPInstall -DesktopShortcut:$createDesktopShortcutCheck.Checked -StartMenuShortcut:$createStartMenuShortcutCheck.Checked -RunAfterInstall:$launchAfterInstallCheck.Checked
+      New-ESPInstall -DesktopShortcut:$createDesktopShortcutCheck.Checked -StartMenuShortcut:$createStartMenuShortcutCheck.Checked
       [System.Windows.Forms.MessageBox]::Show("Ephemeral Session Browser has been installed successfully.", "Installation Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+      
+      if ($launchAfterInstallCheck.Checked) {
+        Start-ESPAfterInstallOrUpdate
+      }
+      
       $window.Close()
     })
 
@@ -326,6 +350,7 @@ Use the options below to configure your installation.
 
   $uninstallTab = New-Object System.Windows.Forms.TabPage
   $uninstallTab.Text = "Uninstall"
+  $uninstallTab.Enabled = $isInstalled
 
   $byeText = New-Object System.Windows.Forms.Label
   $byeText.Text = @"
@@ -362,6 +387,44 @@ If you choose to remove the base profile, all associated data will be deleted.
 
   $uninstallTab.Controls.Add($uninstallButton)
   $tabControl.TabPages.Add($uninstallTab)
+  #endregion
+
+  #region base profile tab
+  $y = 10
+
+  $baseProfileTab = New-Object System.Windows.Forms.TabPage
+  $baseProfileTab.Text = "Base Profile"
+  $baseProfileTab.Enabled = $isInstalled
+
+  $baseProfileText = New-Object System.Windows.Forms.Label
+  $baseProfileText.Text = @"
+The base profile controls the behavior of the ephemeral sessions.
+Changes made to the base profile will persist across sessions.
+Use it to set up bookmarks, extensions, and other settings that you want to keep.
+<br>
+Besides this tool, you can also access the base profile by pressing SHIFT while launching the Ephemeral Session Browser.
+"@ -replace "<br>", "`n"
+  $baseProfileText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), ($tabContentSize.Height - 20 - 20))
+  $baseProfileText.Location = New-Object System.Drawing.Point(10, 10)
+  $baseProfileText.AutoSize = $true
+  $baseProfileTab.Controls.Add($baseProfileText)
+
+  $baseProfileText.PerformLayout()
+  $y += $baseProfileText.Size.Height + 10
+
+  $baseProfileButton = New-Object System.Windows.Forms.Button
+  $baseProfileButton.Text = "Open Base Profile"
+  $baseProfileButton.Location = New-Object System.Drawing.Point(10, $y)
+  $baseProfileButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 30)
+  $baseProfileButton.Add_Click({
+      Start-ESPAfterInstallOrUpdate
+    })
+  $baseProfileTab.Controls.Add($baseProfileButton)
+
+  $baseProfileButton.PerformLayout()
+  $y += $baseProfileButton.Height + 10
+
+  $tabControl.TabPages.Add($baseProfileTab)
   #endregion
 
   #region about tab
