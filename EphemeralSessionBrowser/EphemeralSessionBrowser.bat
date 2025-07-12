@@ -10,7 +10,7 @@ set i=0
     if !i! gtr %SKIP% echo(%%A)
   )
 )
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File %TARGET% -Installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File %TARGET% -StartInstallWizard
 del "%TARGET%" 2>nul
 goto :EOF
 exit
@@ -18,7 +18,10 @@ exit
 
 param(
   [switch]
-  $Installer,
+  $StartInstallWizard,
+
+  [switch]
+  $Uninstall, # only in combination with -StartInstallWizard
 
   [switch]
   $RunAfterInstallOrUpdate
@@ -151,8 +154,13 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
 function Start-TUIInstallWizard() {
   Write-Host "Welcome to the Ephemeral Session Browser installation wizard."
 
-  $choice = Read-Host "Do you want to (I)nstall or (U)ninstall the Ephemeral Session Browser? [I/U]"
-  $choice = $choice.Trim().ToLower()
+  if ($Uninstall) {
+    $choice = "u"
+  }
+  else {
+    $choice = Read-Host "Do you want to (I)nstall or (U)ninstall the Ephemeral Session Browser? [I/U]"
+    $choice = $choice.Trim().ToLower()
+  }
 
   if ($choice.StartsWith('i')) {
     $desktopShortcut = Read-Host "Do you want to create a desktop shortcut? [Yes/No]"
@@ -186,7 +194,200 @@ function Start-TUIInstallWizard() {
 }
 
 function Start-GUIInstallWizard() {
-  throw "Not implemented yet"
+  # install location currently cannot be changed, but is displayed for information purposes
+  $fixedInstallLocation = (Get-InstallPaths).InstallDirectory
+
+  $githubUrl = "https://github.com/shadow578/Entra-Intune-Utilities/tree/main/EphemeralSessionBrowser"
+
+  Add-Type -AssemblyName System.Windows.Forms
+
+  #region main window
+  $window = New-Object System.Windows.Forms.Form
+  $window.Text = "Ephemeral Session Browser Installation Wizard"
+  $window.Size = New-Object System.Drawing.Size(400, 400)
+  $window.StartPosition = "CenterScreen"
+  $window.FormBorderStyle = "FixedDialog"
+  $window.MaximizeBox = $false
+  $window.MinimizeBox = $false
+
+  $tabControl = New-Object System.Windows.Forms.TabControl
+  $tabControl.Size = $window.Size
+  $tabControl.Location = New-Object System.Drawing.Point(0, 0)
+  $window.Controls.Add($tabControl)
+  #endregion
+
+  $tabContentSize = New-Object System.Drawing.Size(($window.ClientSize.Width), ($window.ClientSize.Height))
+  
+  #region install tab
+  $y = 10
+
+  $installTab = New-Object System.Windows.Forms.TabPage
+  $installTab.Text = "Install"
+
+  $welcomeText = New-Object System.Windows.Forms.Label
+  $welcomeText.Text = @"
+Welcome to the Ephemeral Session Browser Installation Wizard!
+Use the options below to configure your installation.
+"@
+  $welcomeText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 100)
+  $welcomeText.Location = New-Object System.Drawing.Point(10, $y)
+  $welcomeText.AutoSize = $true
+  $installTab.Controls.Add($welcomeText)
+
+  $welcomeText.PerformLayout()
+  $y += $welcomeText.Size.Height + 10
+
+  $installLocationLabel = New-Object System.Windows.Forms.Label
+  $installLocationLabel.Text = "Installation Location:"
+  $installLocationLabel.Location = New-Object System.Drawing.Point(10, $y)
+  $installLocationLabel.AutoSize = $true
+  $installTab.Controls.Add($installLocationLabel)
+
+  $installLocationLabel.PerformLayout()
+  $y += $installLocationLabel.Size.Height
+
+  $installLocationTextBox = New-Object System.Windows.Forms.TextBox
+  $installLocationTextBox.Text = $fixedInstallLocation
+  $installLocationTextBox.Location = New-Object System.Drawing.Point(10, $y)
+  $installLocationTextBox.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 20)
+  $installLocationTextBox.Enabled = $false
+  $installTab.Controls.Add($installLocationTextBox)
+
+  $installLocationTextBox.PerformLayout()
+  $y += $installLocationTextBox.Height + 10
+
+  $createDesktopShortcutCheck = New-Object System.Windows.Forms.CheckBox
+  $createDesktopShortcutCheck.Text = "Create a desktop shortcut"
+  $createDesktopShortcutCheck.Location = New-Object System.Drawing.Point(10, $y)
+  $createDesktopShortcutCheck.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 20)
+  $createDesktopShortcutCheck.Checked = $true
+  $installTab.Controls.Add($createDesktopShortcutCheck)
+
+  $createDesktopShortcutCheck.PerformLayout()
+  $y += $createDesktopShortcutCheck.Height + 10
+
+  $createStartMenuShortcutCheck = New-Object System.Windows.Forms.CheckBox
+  $createStartMenuShortcutCheck.Text = "Add to Start Menu"
+  $createStartMenuShortcutCheck.Location = New-Object System.Drawing.Point(10, $y)
+  $createStartMenuShortcutCheck.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 20)
+  $createStartMenuShortcutCheck.Checked = $true
+  $installTab.Controls.Add($createStartMenuShortcutCheck)
+
+  $createStartMenuShortcutCheck.PerformLayout()
+  $y += $createStartMenuShortcutCheck.Height + 10
+
+  $launchAfterInstallCheck = New-Object System.Windows.Forms.CheckBox
+  $launchAfterInstallCheck.Text = "Launch to base profile after installation"
+  $launchAfterInstallCheck.Location = New-Object System.Drawing.Point(10, $y)
+  $launchAfterInstallCheck.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 20)
+  $launchAfterInstallCheck.Checked = $true
+  $installTab.Controls.Add($launchAfterInstallCheck)
+
+  #$launchAfterInstallCheck.PerformLayout()
+  #$y += $launchAfterInstallCheck.Height + 10
+
+  $installButton = New-Object System.Windows.Forms.Button
+  $installButton.Text = "Install now"
+  $installButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 100), 30)
+  $installButton.Location = New-Object System.Drawing.Point(50, ($tabContentSize.Height - 30 - 50))
+  $installButton.Add_Click({      
+      New-ESPInstall -DesktopShortcut:$createDesktopShortcutCheck.Checked -StartMenuShortcut:$createStartMenuShortcutCheck.Checked -RunAfterInstall:$launchAfterInstallCheck.Checked
+      [System.Windows.Forms.MessageBox]::Show("Ephemeral Session Browser has been installed successfully.", "Installation Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+      $window.Close()
+    })
+
+  $installTab.Controls.Add($installButton)
+  $tabControl.TabPages.Add($installTab)
+  #endregion
+
+  #region uninstall tab
+  $y = 10
+
+  $uninstallTab = New-Object System.Windows.Forms.TabPage
+  $uninstallTab.Text = "Uninstall"
+
+  $byeText = New-Object System.Windows.Forms.Label
+  $byeText.Text = @"
+Welcome to the Ephemeral Session Browser Removal Wizard!
+This wizard will help you remove the Ephemeral Session Browser from your system.
+If you choose to remove the base profile, all associated data will be deleted.
+"@
+  $byeText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 100)
+  $byeText.Location = New-Object System.Drawing.Point(10, $y)
+  $byeText.AutoSize = $true
+  $uninstallTab.Controls.Add($byeText)
+
+  $byeText.PerformLayout()
+  $y += $byeText.Size.Height + 10
+
+  $removeProfilesCheck = New-Object System.Windows.Forms.CheckBox
+  $removeProfilesCheck.Text = "Remove profiles (including base profile)"
+  $removeProfilesCheck.Location = New-Object System.Drawing.Point(10, $y)
+  $removeProfilesCheck.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 20)
+  $uninstallTab.Controls.Add($removeProfilesCheck)
+
+  #$removeProfilesCheck.PerformLayout()
+  #$y += $removeProfilesCheck.Height + 10
+
+  $uninstallButton = New-Object System.Windows.Forms.Button
+  $uninstallButton.Text = "Uninstall now"
+  $uninstallButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 100), 30)
+  $uninstallButton.Location = New-Object System.Drawing.Point(50, ($tabContentSize.Height - 30 - 50))
+  $uninstallButton.Add_Click({
+      Remove-ESPInstall -RemoveProfiles:$removeProfilesCheck.Checked
+      [System.Windows.Forms.MessageBox]::Show("Ephemeral Session Browser has been uninstalled successfully.", "Uninstallation Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+      $window.Close()
+    })
+
+  $uninstallTab.Controls.Add($uninstallButton)
+  $tabControl.TabPages.Add($uninstallTab)
+  #endregion
+
+  #region about tab
+  $y = 10
+
+  $aboutTab = New-Object System.Windows.Forms.TabPage
+  $aboutTab.Text = "About"
+
+  $aboutText = New-Object System.Windows.Forms.Label
+  $aboutText.Text = @"
+Ephemeral Session Browser, developed by shadow587.
+<br>
+This tool allows you to run many independent browser sessions side-by-side, equivalent to running many independent incognito windows.
+Changes made to these sessions does not persist after the browser is closed, making it ideal temporary browsing needs.
+<br>
+Ephemeral Session Browser is licensed under the Apache License 2.0.
+More information can be found on the project's GitHub page.
+"@ -replace "<br>", "`n"
+  $aboutText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), ($tabContentSize.Height - 20 - 20))
+  $aboutText.Location = New-Object System.Drawing.Point(10, 10)
+  $aboutText.AutoSize = $true
+  $aboutTab.Controls.Add($aboutText)
+
+  $aboutText.PerformLayout()
+  $y += $aboutText.Size.Height + 10
+
+  $githubLink = New-Object System.Windows.Forms.LinkLabel
+  $githubLink.Text = "Visit the GitHub page"
+  $githubLink.Location = New-Object System.Drawing.Point(10, $y)
+  $githubLink.AutoSize = $true
+  $githubLink.Add_Click({
+      Write-Host "Opening $githubUrl..."
+      Start-Process $githubUrl
+    })
+  $aboutTab.Controls.Add($githubLink)
+
+  #$githubLink.PerformLayout()
+  #$y += $githubLink.Height + 10
+
+  $tabControl.TabPages.Add($aboutTab)
+  #endregion
+
+  if ($Uninstall) {
+    $tabControl.SelectedIndex = 1
+  }
+
+  $window.ShowDialog()
 }
 
 function Start-InstallWizard() {
@@ -196,8 +397,8 @@ function Start-InstallWizard() {
     Start-GUIInstallWizard
   }
   catch {
-    Write-Host "Failed to start GUI install wizard, falling back to TUI install wizard."
-    Write-Host "Error: $_"
+    Write-Host "Failed to start GUI install wizard, falling back to TUI install wizard." -ForegroundColor Red
+    Write-Host "Error: $_" -ForegroundColor Red
     Start-TUIInstallWizard
   }
 }
@@ -402,7 +603,7 @@ function Start-EphemeralBrowser() {
 #endregion
 
 function Main() {
-  if ($Installer) {
+  if ($StartInstallWizard) {
     Start-InstallWizard
     return
   }
