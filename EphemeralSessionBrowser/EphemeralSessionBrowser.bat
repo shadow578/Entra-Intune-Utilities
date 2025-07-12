@@ -1,7 +1,13 @@
+:: EphemeralSessionBrowser bootstrapper, Version 25W28a.
+:: This script is used to install or update the Ephemeral Session Browser, as well as containing the main logic itself.
+::
+:: Ephemeral Session Browser is licensed to you under the Apache License 2.0.
+:: https://github.com/shadow578/Entra-Intune-Utilities/tree/main/EphemeralSessionBrowser
+:: (c) 2025 shadow578
 @echo off
 setlocal enabledelayedexpansion
 set "TARGET=%TEMP%\EphemeralSessionBrowser.installer.ps1"
-set SKIP=17
+set SKIP=23
 del "%TARGET%" 2>nul
 set i=0
 > "%TARGET%" (
