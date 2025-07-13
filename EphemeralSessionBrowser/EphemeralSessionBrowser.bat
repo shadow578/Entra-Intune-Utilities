@@ -1,27 +1,16 @@
-:: EphemeralSessionBrowser bootstrapper, Version 25W28a.
-:: This script is used to install or update the Ephemeral Session Browser, as well as containing the main logic itself.
-::
-:: Ephemeral Session Browser is licensed to you under the Apache License 2.0.
-:: https://github.com/shadow578/Entra-Intune-Utilities/tree/main/EphemeralSessionBrowser
-:: (c) 2025 shadow578
-@echo off
-setlocal enabledelayedexpansion
-set "TARGET=%TEMP%\EphemeralSessionBrowser.installer.ps1"
-set SKIP=23
-del "%TARGET%" 2>nul
-set i=0
-> "%TARGET%" (
-  for /f "usebackq delims=" %%A in ("%~f0") do (
-    set /a i+=1
-    if !i! gtr %SKIP% echo(%%A)
-  )
-)
-powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File %TARGET% -StartInstallWizard
-del "%TARGET%" 2>nul
+C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Clear-Host; Write-Host 'Loading...'; $src = '%~0'; $target = Join-Path -Path $env:TEMP -ChildPath '%~n0.ps1'; $eol = $false; (@(Get-Content -Path $src | Where-Object { if($_ -eq '# END OF LOADER #') { $eol = $true }; return $eol }) -join ([char]0xa)) | Out-File -FilePath $target; Invoke-Expression -Command ($target + ' -StartInstallWizard'); Remove-Item -Path $target -Force"
 goto :EOF
 exit
-# --- end of installer bootstrapper ---
+# END OF LOADER #
 
+<#
+EphemeralSessionBrowser bootstrapper, Version 25W28a.
+This script is used to install or update the Ephemeral Session Browser, as well as containing the main logic itself.
+
+Ephemeral Session Browser is licensed to you under the Apache License 2.0.
+https://github.com/shadow578/Entra-Intune-Utilities/tree/main/EphemeralSessionBrowser
+(c) 2025 shadow578
+#>
 param(
   [switch]
   $StartInstallWizard,
@@ -407,9 +396,9 @@ If you choose to remove the base profile, all associated data will be deleted.
 The base profile controls the behavior of the ephemeral sessions.
 Changes made to the base profile will persist across sessions.
 Use it to set up bookmarks, extensions, and other settings that you want to keep.
-<br>
+
 Besides this tool, you can also access the base profile by pressing SHIFT while launching the Ephemeral Session Browser.
-"@ -replace "<br>", "`n"
+"@
   $baseProfileText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), ($tabContentSize.Height - 20 - 20))
   $baseProfileText.Location = New-Object System.Drawing.Point(10, 10)
   $baseProfileText.AutoSize = $true
@@ -442,13 +431,13 @@ Besides this tool, you can also access the base profile by pressing SHIFT while 
   $aboutText = New-Object System.Windows.Forms.Label
   $aboutText.Text = @"
 Ephemeral Session Browser, developed by shadow587.
-<br>
+
 This tool allows you to run many independent browser sessions side-by-side, equivalent to running many independent incognito windows.
 Changes made to these sessions does not persist after the browser is closed, making it ideal temporary browsing needs.
-<br>
+
 Ephemeral Session Browser is licensed under the Apache License 2.0.
 More information can be found on the project's GitHub page.
-"@ -replace "<br>", "`n"
+"@
   $aboutText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), ($tabContentSize.Height - 20 - 20))
   $aboutText.Location = New-Object System.Drawing.Point(10, 10)
   $aboutText.AutoSize = $true
@@ -597,8 +586,7 @@ public static class KeyHelper
 
   public static bool IsKeyPressed(int keyCode)
   {
-    // note: ^!= is required here since loader will otherwise mangle the expression
-    return (GetAsyncKeyState(keyCode) & 0x8000) ^!= 0; 
+    return (GetAsyncKeyState(keyCode) & 0x8000) != 0; 
   }
 }
 "@
@@ -610,7 +598,7 @@ function Show-BaseProfileInfoMessage($FirstRun) {
   try {
     $commonBody = @"
 Any changes made to this profile will be saved and used for future sessions.
-<br>
+
 To save changes, simply close the browser window.
 To access the base profile at a later time, press SHIFT while launching the Ephemeral Session Browser.
 "@
@@ -619,7 +607,7 @@ To access the base profile at a later time, press SHIFT while launching the Ephe
       $title = "Welcome to the Ephemeral Session Browser"
       $body = @"
 Welcome to the Ephemeral Session Browser!
-<br>
+
 Since this is the first time you're starting the browser, it started in the base profile.
 $commonBody
 "@
@@ -631,9 +619,6 @@ The Ephemeral Session Browser has started in the base profile upon your request.
 $commonBody
 "@
     }
-
-    # loader mangles empty lines
-    $body = $body -replace "<br>", "`n" 
 
     Add-Type -AssemblyName System.Windows.Forms
     [System.Windows.Forms.MessageBox]::Show($body, $title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
