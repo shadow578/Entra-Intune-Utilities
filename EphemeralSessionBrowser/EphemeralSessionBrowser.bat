@@ -28,7 +28,7 @@ param(
 # the program information table allows you to easily rename the program, making white-labeling easy.
 $ProgramInfo = [PSCustomObject]@{
   # the version of the program.
-  Version        = "25W28b"
+  Version        = "25W29a"
 
   # the vendor is displayed as the developer of the program in various places.
   Vendor         = "shadow587"
@@ -103,12 +103,14 @@ function Install-Chrome() {
   $chromePath = Get-ChromePath -AllowNull
   if ($null -eq $chromePath) {
     Write-Host "Chrome is not installed. Attempting to install via winget."
-    try {
-      winget install Google.Chrome
+
+    $wingetCmd = Get-Command "winget" -ErrorAction SilentlyContinue
+    if ($null -eq $wingetCmd) {
+      Write-Host "winget command not found. Please install Chrome manually or install winget." -ForegroundColor Red
+      throw "winget command not found!"
     }
-    catch {
-      Write-Host "Failed to install Chrome via winget: $_" -ForegroundColor Red
-    }
+
+    Start-Process -FilePath $wingetCmd.Source -ArgumentList @("install", "Google.Chrome") -Wait -NoNewWindow
   }
 
   $chromePath = Get-ChromePath -AllowNull
