@@ -68,7 +68,7 @@ function Get-ChromePath([switch] $AllowNull) {
 
     throw "Chrome executable not found! Please ensure that Google Chrome is installed and available in your PATH."
   }
-  
+
   Write-Host "Using Chrome executable Version $($cmd.Version) at $($cmd.Source)"
   return $cmd.Source
 }
@@ -118,7 +118,18 @@ function Install-Chrome() {
   }
 }
 
-function New-Shortcut([string] $Path, [string] $Target, [string] $Description = "", [string] $IconLocation = "") {
+enum ShortcutWindowStyle {
+  Normal = 1
+  Maximized = 3
+  Minimized = 7
+}
+
+function New-Shortcut(
+  [string] $Path, 
+  [string] $Target, 
+  [string] $Description = "", 
+  [string] $IconLocation = "", 
+  [ShortcutWindowStyle] $WindowStyle = [ShortcutWindowStyle]::Normal) {
   $wsh = New-Object -ComObject WScript.Shell
   $shortcut = $wsh.CreateShortcut($Path)
   $shortcut.TargetPath = $Target
@@ -130,6 +141,8 @@ function New-Shortcut([string] $Path, [string] $Target, [string] $Description = 
   if ($IconLocation) {
     $shortcut.IconLocation = $IconLocation
   }
+
+  $shortcut.WindowStyle = [int]$WindowStyle
   
   $shortcut.Save()
 }
@@ -195,11 +208,11 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
 
   # create shortcuts
   if ($DesktopShortcut) {
-    New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description $ProgramInfo.DisplayName -IconLocation $paths.ProgramIcon
+    New-Shortcut -Path $paths.DesktopShortcut -Target $paths.LoaderPath -Description $ProgramInfo.DisplayName -IconLocation $paths.ProgramIcon -WindowStyle Minimized
   }
 
   if ($StartMenuShortcut) {
-    New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description $ProgramInfo.DisplayName -IconLocation $paths.ProgramIcon
+    New-Shortcut -Path $paths.StartMenuShortcut -Target $paths.LoaderPath -Description $ProgramInfo.DisplayName -IconLocation $paths.ProgramIcon -WindowStyle Minimized
   }
 }
 
