@@ -52,7 +52,14 @@ $ProgramInfo = [PSCustomObject]@{
 }
 
 function Get-ChromePath([switch] $AllowNull) {
-  $cmd = Get-Command "chrome.exe"
+  $cmd = Get-Command "chrome.exe" -ErrorAction SilentlyContinue
+  if ($null -eq $cmd) {
+    $cmd = Get-Command "C:\Program Files\Google\Chrome\Application\chrome.exe" -ErrorAction SilentlyContinue
+  }
+  if ($null -eq $cmd) {
+    $cmd = Get-Command "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" -ErrorAction SilentlyContinue
+  }
+
   if ($null -eq $cmd) {
     if ($AllowNull) {
       Write-Host "Chrome executable not found, returning null."
