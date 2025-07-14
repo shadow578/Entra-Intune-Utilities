@@ -1,8 +1,8 @@
-assets for the ESP project (mainly program icon).
+assets for the ESB project (mainly program icon).
 these assets are (manually) bundled into the main script, and are included here only for reference.
 
 
-## Program Icon (EPS.psd / ESP.ico)
+## Program Icon (ESB.psd / ESB.ico)
 
 the program icon is a mashup of the chromium logo (hue-shifted to yellow) and a ghost icon licensed under the MIT license.
 

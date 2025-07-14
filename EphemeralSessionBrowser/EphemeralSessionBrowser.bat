@@ -5,7 +5,7 @@ exit
 
 <#
 This script is used to install or update the Ephemeral Session Browser, as well as containing the main logic itself.
-The ESP allows you to run a Chromium-based browser in a temporary session, which is useful for having 
+The ESB allows you to run a Chromium-based browser in a temporary session, which is useful for having 
 many (temporary) browser sessions without cluttering your main browser profile, or having to resort to many browsers 
 and using their incognito mode.
 
@@ -47,7 +47,7 @@ $ProgramInfo = [PSCustomObject]@{
 
   # the program icon that is used for the shortcuts and in the uninstall entry.
   # create using this command:
-  # [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes(".\assets\ESP.ico")) | Set-Clipboard
+  # [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes(".\assets\ESB.ico")) | Set-Clipboard
   ProgramIconB64 = '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'
 }
 
@@ -135,7 +135,7 @@ function Get-UninstallKey([switch] $Create) {
   return $uninstallKey
 }
 
-function Remove-ESPInstall([switch] $RemoveProfiles) {
+function Remove-ESBInstall([switch] $RemoveProfiles) {
   Write-Host "Removing $($ProgramInfo.DisplayName) installation..."
   $paths = Get-InstallPaths
 
@@ -153,9 +153,9 @@ function Remove-ESPInstall([switch] $RemoveProfiles) {
   }
 }
 
-function New-ESPInstall([switch] $DesktopShortcut, [switch] $StartMenuShortcut) {
+function New-ESBInstall([switch] $DesktopShortcut, [switch] $StartMenuShortcut) {
   # before installing, remove any previous installation, keeping profiles
-  Remove-ESPInstall -RemoveProfiles:$false
+  Remove-ESBInstall -RemoveProfiles:$false
 
   Write-Host "Installing $($ProgramInfo.DisplayName)..."
   $paths = Get-InstallPaths
@@ -196,7 +196,7 @@ powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "$($
   }
 }
 
-function Start-ESPAfterInstallOrUpdate() {
+function Start-ESBAfterInstallOrUpdate() {
   Start-Process -FilePath ((Get-InstallPaths).LoaderPath) -ArgumentList "-RunAfterInstallOrUpdate"
 }
 
@@ -224,10 +224,10 @@ function Start-TUIInstallWizard() {
     $runAfterInstall = $runAfterInstall.Trim().ToLower()
     $runAfterInstall = $runAfterInstall.StartsWith('y')
 
-    New-ESPInstall -DesktopShortcut:$desktopShortcut -StartMenuShortcut:$startMenuShortcut
+    New-ESBInstall -DesktopShortcut:$desktopShortcut -StartMenuShortcut:$startMenuShortcut
 
     if ($runAfterInstall) {
-      Start-ESPAfterInstallOrUpdate
+      Start-ESBAfterInstallOrUpdate
     }
   }
   elseif ($choice.StartsWith('u')) {
@@ -235,7 +235,7 @@ function Start-TUIInstallWizard() {
     $removeProfiles = $removeProfiles.Trim().ToLower()
     $removeProfiles = $removeProfiles.StartsWith('y')
 
-    Remove-ESPInstall -RemoveProfiles:$removeProfiles
+    Remove-ESBInstall -RemoveProfiles:$removeProfiles
   }
   else {
     Write-Host "Invalid choice. Please enter 'I' to install or 'U' to uninstall."
@@ -357,11 +357,11 @@ Use the options below to configure your installation.
   $installButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 100), 30)
   $installButton.Location = New-Object System.Drawing.Point(50, ($tabContentSize.Height - 30 - 50))
   $installButton.Add_Click({      
-      New-ESPInstall -DesktopShortcut:$createDesktopShortcutCheck.Checked -StartMenuShortcut:$createStartMenuShortcutCheck.Checked
+      New-ESBInstall -DesktopShortcut:$createDesktopShortcutCheck.Checked -StartMenuShortcut:$createStartMenuShortcutCheck.Checked
       [System.Windows.Forms.MessageBox]::Show("$($ProgramInfo.DisplayName) has been installed successfully.", "Installation Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
       
       if ($launchAfterInstallCheck.Checked) {
-        Start-ESPAfterInstallOrUpdate
+        Start-ESBAfterInstallOrUpdate
       }
       
       $window.Close()
@@ -406,7 +406,7 @@ If you choose to remove the base profile, all associated data will be deleted.
   $uninstallButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 100), 30)
   $uninstallButton.Location = New-Object System.Drawing.Point(50, ($tabContentSize.Height - 30 - 50))
   $uninstallButton.Add_Click({
-      Remove-ESPInstall -RemoveProfiles:$removeProfilesCheck.Checked
+      Remove-ESBInstall -RemoveProfiles:$removeProfilesCheck.Checked
       [System.Windows.Forms.MessageBox]::Show("$($ProgramInfo.DisplayName) has been uninstalled successfully.", "Uninstallation Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
       $window.Close()
     })
@@ -443,7 +443,7 @@ Besides this tool, you can also access the base profile by pressing SHIFT while 
   $baseProfileButton.Location = New-Object System.Drawing.Point(10, $y)
   $baseProfileButton.Size = New-Object System.Drawing.Size(($tabContentSize.Width - 20), 30)
   $baseProfileButton.Add_Click({
-      Start-ESPAfterInstallOrUpdate
+      Start-ESBAfterInstallOrUpdate
     })
   $baseProfileTab.Controls.Add($baseProfileButton)
 
