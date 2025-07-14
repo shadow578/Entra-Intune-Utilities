@@ -480,14 +480,19 @@ Besides this tool, you can also access the base profile by pressing SHIFT while 
   $aboutTab.Text = "About"
 
   $aboutText = New-Object System.Windows.Forms.Label
-  $aboutText.Text = @"
+
+  $aboutTextContent = @"
 $($ProgramInfo.DisplayName) ($($ProgramInfo.Version)), by $($ProgramInfo.Vendor).
 
 This tool allows you to run many independent browser sessions side-by-side, equivalent to running many independent incognito windows.
 Changes made to these sessions does not persist after the browser is closed, making it ideal temporary browsing needs.
-
-$($ProgramInfo.DisplayName) is licensed under the $($ProgramInfo.License).
 "@
+  
+  if ($ProgramInfo.License) {
+    $aboutTextContent += "`n`n$($ProgramInfo.DisplayName) is licensed to you under the $($ProgramInfo.License)."
+  }
+
+  $aboutText.Text = $aboutTextContent
   $aboutText.MaximumSize = New-Object System.Drawing.Size(($tabContentSize.Width - 20), ($tabContentSize.Height - 20 - 20))
   $aboutText.Location = New-Object System.Drawing.Point(10, 10)
   $aboutText.AutoSize = $true
@@ -496,18 +501,20 @@ $($ProgramInfo.DisplayName) is licensed under the $($ProgramInfo.License).
   $aboutText.PerformLayout()
   $y += $aboutText.Size.Height + 10
 
-  $githubLink = New-Object System.Windows.Forms.LinkLabel
-  $githubLink.Text = $ProgramInfo.AboutLinkText
-  $githubLink.Location = New-Object System.Drawing.Point(10, $y)
-  $githubLink.AutoSize = $true
-  $githubLink.Add_Click({
-      Write-Host "Opening $($ProgramInfo.AboutLinkUrl)..."
-      Start-Process $ProgramInfo.AboutLinkUrl
-    })
-  $aboutTab.Controls.Add($githubLink)
-
-  #$githubLink.PerformLayout()
-  #$y += $githubLink.Height + 10
+  if ($ProgramInfo.AboutLinkText) {
+    $githubLink = New-Object System.Windows.Forms.LinkLabel
+    $githubLink.Text = $ProgramInfo.AboutLinkText
+    $githubLink.Location = New-Object System.Drawing.Point(10, $y)
+    $githubLink.AutoSize = $true
+    $githubLink.Add_Click({
+        Write-Host "Opening $($ProgramInfo.AboutLinkUrl)..."
+        Start-Process $ProgramInfo.AboutLinkUrl
+      })
+    $aboutTab.Controls.Add($githubLink)
+  
+    #$githubLink.PerformLayout()
+    #$y += $githubLink.Height + 10
+  }
 
   $tabControl.TabPages.Add($aboutTab)
   #endregion
