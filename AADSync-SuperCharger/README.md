@@ -7,14 +7,14 @@ a small (-ish) script that makes syncing users and devices from a on-premise AD 
 The AADSync-SuperCharger script must be installed on the server that the AAD Connector is installed on.
 The server must also have the ActiveDirectory powershell module installed and must be able to query user and computer objects (test by running `Get-ADUser` and `Get-ADComputer`)
 
-> NOTE: requires powershell 7 or higher.
+> NOTE: requires powershell 5
 
 to install, first run the `Setup.ps1` script in an elevated powershell.
 After this, create a new scheduled task to run the `AADSyncSuperCharger.ps1` script and set it to run every 5 Minutes.
 The task should have a action as follows:
 
 ```
-Program/script: "C:\Program Files\PowerShell\7\pwsh.exe"
+Program/script: "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
 Add arguments: -File "C:\Path\To\AADSyncSuperCharger.ps1"
 Start in: C:\Path\To\
 ```
